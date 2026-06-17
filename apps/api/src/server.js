@@ -6,15 +6,18 @@ import cors from '@fastify/cors';
 import { globalErrorHandler } from './middleware/errorHandler.js';
 import { BillingService } from './services/BillingService.js';
 import { OrderService } from './services/OrderService.js';
+import { AuthService } from './services/AuthService.js';
 import { catalogRoutes } from './routes/catalog.js';
 import { billingRoutes } from './routes/billing.js';
 import { adminRoutes } from './routes/admin.js';
+import { authRoutes } from './routes/auth.js';
+import { metricsRoutes } from './routes/metrics.js';
 
 /**
  * Build and return the Fastify app.
  * @param {{ logger?: any, repos?: object }} opts
  *   Pass `repos` to inject in-memory repositories (for tests).
- *   Omit `repos` to use Supabase-backed repositories (production).
+ *   Omit `repos` to use Postgres-backed repositories (production).
  */
 export async function buildApp(opts = {}) {
   const app = Fastify({
@@ -36,39 +39,42 @@ export async function buildApp(opts = {}) {
   await app.register(cors, { origin: true });
   app.setErrorHandler(globalErrorHandler);
 
-  // ─── Dependency injection ─────────────────────────────────────────────────
-  // Tests pass in-memory repos; production lazy-imports the Supabase impls
+  // ─── Dependency injection ──────────────────────────────────────────────────
+  // Tests pass in-memory repos; production lazy-imports the Postgres impls.
   let repos = opts.repos;
+  let pool = null;
+
   if (!repos) {
-    // Lazy import so supabase-js is never loaded during tests
-    const { supabaseAdmin, supabaseAnon } = await import('./config/supabase.js');
-    const { SupabaseCatalogRepository } = await import('./repositories/supabase/SupabaseCatalogRepository.js');
-    const { SupabaseOfferRepository } = await import('./repositories/supabase/SupabaseOfferRepository.js');
-    const { SupabaseCouponRepository } = await import('./repositories/supabase/SupabaseCouponRepository.js');
-    const { SupabaseOrderRepository } = await import('./repositories/supabase/SupabaseOrderRepository.js');
+    const { getPool } = await import('./config/db.js');
+    pool = await getPool();
+
+    const { PostgresCatalogRepository } = await import('./repositories/postgres/PostgresCatalogRepository.js');
+    const { PostgresOfferRepository }   = await import('./repositories/postgres/PostgresOfferRepository.js');
+    const { PostgresCouponRepository }  = await import('./repositories/postgres/PostgresCouponRepository.js');
+    const { PostgresOrderRepository }   = await import('./repositories/postgres/PostgresOrderRepository.js');
+
     repos = {
-      catalog: new SupabaseCatalogRepository(supabaseAnon),
-      offer: new SupabaseOfferRepository(supabaseAnon),
-      coupon: new SupabaseCouponRepository(supabaseAnon),
-      order: new SupabaseOrderRepository(supabaseAdmin),
+      catalog: new PostgresCatalogRepository(pool),
+      offer:   new PostgresOfferRepository(pool),
+      coupon:  new PostgresCouponRepository(pool),
+      order:   new PostgresOrderRepository(pool),
     };
   }
 
   const billingService = new BillingService(repos.catalog, repos.offer, repos.coupon);
-  const orderService = new OrderService(billingService, repos.order, repos.coupon);
+  const orderService   = new OrderService(billingService, repos.order, repos.coupon);
+  const authService    = new AuthService(pool ?? opts.pool ?? null);
 
   // ─── Routes ────────────────────────────────────────────────────────────────
-  app.get('/health', async (_req, reply) => {
-    reply.send({ status: 'ok', timestamp: new Date().toISOString() });
-  });
-
+  await app.register(metricsRoutes);
+  await app.register(authRoutes,    { prefix: '/auth',    authService });
   await app.register(catalogRoutes, { prefix: '/catalog', catalogRepo: repos.catalog });
-  await app.register(billingRoutes, { prefix: '/', billingService, orderService });
-  await app.register(adminRoutes, {
+  await app.register(billingRoutes, { prefix: '/',        billingService, orderService });
+  await app.register(adminRoutes,   {
     prefix: '/admin',
     catalogRepo: repos.catalog,
-    offerRepo: repos.offer,
-    couponRepo: repos.coupon,
+    offerRepo:   repos.offer,
+    couponRepo:  repos.coupon,
   });
 
   return app;

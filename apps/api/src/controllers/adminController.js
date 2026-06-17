@@ -21,8 +21,7 @@ export class AdminController {
 
   // ─── Catalog ───────────────────────────────────────────────────────────────
   listAllItems = async (request, reply) => {
-    // Admin can see inactive items too — fetch all via raw Supabase if needed
-    // For simplicity, call findAllActive(); extend with findAll() for full admin view
+    // Admin can see inactive items too — use findAll() when full admin view is needed
     const items = await this._catalog.findAllActive();
     reply.send({ data: items });
   };

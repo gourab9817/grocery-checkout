@@ -11,7 +11,7 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'lcov'],
       include: ['src/**/*.js'],
-      exclude: ['src/server.js', 'src/config/seed.js', 'src/test-setup.js'],
+      exclude: ['src/server.js', 'src/test-setup.js'],
     },
   },
 });

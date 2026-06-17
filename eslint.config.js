@@ -65,11 +65,10 @@ export default [
   },
   {
     ignores: [
-      'node_modules/**',
-      'dist/**',
-      '.vite/**',
-      'coverage/**',
       '**/node_modules/**',
+      '**/dist/**',
+      '**/.vite/**',
+      '**/coverage/**',
     ],
   },
 ];

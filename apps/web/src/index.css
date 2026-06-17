@@ -10,14 +10,96 @@
   html {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    scroll-behavior: smooth;
   }
 
   body {
-    @apply font-sans text-gray-900 bg-gray-50;
+    background-color: #F9F8F4;
+    color: #2D3A31;
+    font-family: 'Source Sans 3', system-ui, sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
   }
 
-  /* Consistent focus ring across interactive elements */
+  h1, h2, h3, h4, h5 {
+    font-family: 'Playfair Display', Georgia, serif;
+    line-height: 1.15;
+  }
+
   :focus-visible {
-    @apply outline-2 outline-offset-2 outline-brand-600 rounded;
+    outline: 2px solid #8C9A84;
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+
+  /* Smooth scrollbar */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: #F2F0EB; }
+  ::-webkit-scrollbar-thumb { background: #DCCFC2; border-radius: 99px; }
+  ::-webkit-scrollbar-thumb:hover { background: #8C9A84; }
+}
+
+@layer components {
+  /* ── Buttons ── */
+  .btn-primary {
+    @apply inline-flex items-center gap-2 px-7 py-3 rounded-full bg-forest text-white
+           font-sans text-sm font-semibold tracking-widest uppercase
+           transition-all duration-300 hover:bg-terra hover:scale-[1.02]
+           focus-visible:ring-2 focus-visible:ring-sage focus-visible:ring-offset-2;
+  }
+  .btn-secondary {
+    @apply inline-flex items-center gap-2 px-7 py-3 rounded-full border border-sage text-sage
+           font-sans text-sm font-semibold tracking-widest uppercase bg-transparent
+           transition-all duration-300 hover:bg-sage hover:text-white hover:scale-[1.02]
+           focus-visible:ring-2 focus-visible:ring-sage focus-visible:ring-offset-2;
+  }
+  .btn-ghost {
+    @apply inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-forest
+           font-sans text-sm font-medium
+           transition-all duration-300 hover:bg-parchment;
+  }
+
+  /* ── Cards ── */
+  .card {
+    @apply bg-white rounded-[24px] border border-stone shadow-soft
+           transition-all duration-500 hover:-translate-y-1 hover:shadow-lift;
+  }
+  .card-parchment {
+    @apply bg-parchment rounded-[24px] border border-stone shadow-soft
+           transition-all duration-500 hover:-translate-y-1 hover:shadow-lift;
+  }
+
+  /* ── Inputs ── */
+  .input {
+    @apply w-full px-4 py-3 rounded-2xl bg-parchment border border-stone text-forest
+           placeholder-clay font-sans text-sm
+           transition-all duration-300
+           focus:outline-none focus:border-sage focus:ring-1 focus:ring-sage/40
+           focus:bg-white;
+  }
+  .input-label {
+    @apply block text-xs font-semibold tracking-widest uppercase text-sage mb-1.5;
+  }
+
+  /* ── Badges ── */
+  .badge {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold tracking-wide
+           uppercase border;
+  }
+  .badge-sage  { @apply badge bg-sage/10 text-sage border-sage/20; }
+  .badge-terra { @apply badge bg-terra/10 text-terra border-terra/20; }
+  .badge-clay  { @apply badge bg-clay/30 text-forest border-clay/50; }
+
+  /* ── Section heading ── */
+  .section-eyebrow {
+    @apply text-xs font-semibold tracking-[0.25em] uppercase text-sage;
+  }
+  .section-title {
+    @apply font-serif font-bold text-forest;
+  }
+
+  /* ── Divider line ── */
+  .divider {
+    @apply border-t border-stone my-6;
   }
 }

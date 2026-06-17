@@ -1,6 +1,6 @@
 export class OrderRepository {
   /**
-   * Persist an order + its lines atomically (single transaction/RPC — no partial writes).
+   * Persist an order + its lines atomically (single transaction — no partial writes).
    * @param {{ order: object, lines: object[] }} data
    * @returns {Promise<{ id: string }>}
    */

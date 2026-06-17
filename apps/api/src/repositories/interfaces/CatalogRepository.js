@@ -3,7 +3,7 @@
  *
  * Concrete implementations:
  *   - repositories/memory/MemoryCatalogRepository  (tests, offline dev)
- *   - repositories/supabase/SupabaseCatalogRepository (production)
+ *   - repositories/postgres/PostgresCatalogRepository (production)
  *
  * Services depend on THIS interface, never on a concrete class (DIP).
  */
