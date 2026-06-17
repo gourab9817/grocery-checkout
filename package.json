@@ -1,0 +1,33 @@
+{
+  "name": "grocery-checkout",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "dev": "concurrently -n api,web -c cyan,magenta \"npm run dev -w apps/api\" \"npm run dev -w apps/web\"",
+    "build": "npm run build -w apps/api && npm run build -w apps/web",
+    "test": "npm run test -w packages/domain && npm run test -w apps/api",
+    "test:domain": "npm run test -w packages/domain",
+    "test:api": "npm run test -w apps/api",
+    "lint": "eslint . --ext .js,.jsx",
+    "format": "prettier --write \"**/*.{js,jsx,json,md}\"",
+    "format:check": "prettier --check \"**/*.{js,jsx,json,md}\"",
+    "verify": "npm run lint && npm run test",
+    "seed": "npm run seed -w apps/api"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "concurrently": "^8.2.2",
+    "eslint": "^9.8.0",
+    "espree": "^11.2.0",
+    "globals": "^17.6.0",
+    "prettier": "^3.3.3"
+  }
+}

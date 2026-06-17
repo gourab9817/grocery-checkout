@@ -1,0 +1,30 @@
+# dependencies
+node_modules/
+
+# build outputs
+dist/
+.vite/
+coverage/
+
+# env files — never commit real secrets
+.env
+.env.local
+.env.*.local
+
+# Supabase local dev
+supabase/.temp/
+supabase/.branches/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# editor
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+
+# logs
+*.log
+npm-debug.log*
