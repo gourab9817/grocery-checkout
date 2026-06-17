@@ -5,22 +5,36 @@
 
 const BASE = import.meta.env.VITE_API_URL ?? '/api';
 
-const TOKEN_KEY = 'ansrmart_admin_token';
+const ADMIN_TOKEN_KEY = 'ansrmart_admin_token';
+const USER_TOKEN_KEY  = 'ansrmart_user_token';
 
+// Admin token helpers (used by AdminPage)
 export function getAuthToken() {
-  return localStorage.getItem(TOKEN_KEY);
+  return localStorage.getItem(ADMIN_TOKEN_KEY);
 }
-
 export function setAuthToken(token) {
-  if (token) {
-    localStorage.setItem(TOKEN_KEY, token);
-  } else {
-    localStorage.removeItem(TOKEN_KEY);
-  }
+  if (token) localStorage.setItem(ADMIN_TOKEN_KEY, token);
+  else localStorage.removeItem(ADMIN_TOKEN_KEY);
 }
 
-async function request(method, path, body) {
-  const token = getAuthToken();
+// Customer token helpers (used throughout the shop)
+export function getUserToken() {
+  return localStorage.getItem(USER_TOKEN_KEY);
+}
+export function setUserToken(token) {
+  if (token) localStorage.setItem(USER_TOKEN_KEY, token);
+  else localStorage.removeItem(USER_TOKEN_KEY);
+}
+export function getSavedUser() {
+  try { return JSON.parse(localStorage.getItem('ansrmart_user') ?? 'null'); } catch { return null; }
+}
+export function setSavedUser(user) {
+  if (user) localStorage.setItem('ansrmart_user', JSON.stringify(user));
+  else localStorage.removeItem('ansrmart_user');
+}
+
+async function request(method, path, body, { useUserToken = false } = {}) {
+  const token = useUserToken ? getUserToken() : getAuthToken();
   const headers = { 'Content-Type': 'application/json' };
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
@@ -49,6 +63,13 @@ export const api = {
     register: (creds) => request('POST', '/auth/register', creds),
   },
 
+  users: {
+    signup:    (data) => request('POST', '/users/signup', data),
+    login:     (data) => request('POST', '/users/login',  data),
+    me:        ()     => request('GET',  '/users/me', undefined, { useUserToken: true }),
+    myOrders:  ()     => request('GET',  '/orders/mine',  undefined, { useUserToken: true }),
+  },
+
   catalog: {
     list: (category) =>
       request('GET', `/catalog${category ? `?category=${category}` : ''}`),
@@ -56,7 +77,7 @@ export const api = {
 
   billing: {
     quote:    (cart)  => request('POST', '/quote', cart),
-    checkout: (cart)  => request('POST', '/checkout', cart),
+    checkout: (cart)  => request('POST', '/checkout', cart, { useUserToken: true }),
     getOrder: (id)    => request('GET',  `/orders/${id}`),
   },
 
@@ -72,7 +93,9 @@ export const api = {
       update: (id, d)  => request('PATCH', `/admin/offers/${id}`, d),
     },
     coupons: {
-      create: (data)   => request('POST',  '/admin/coupons', data),
+      list:   ()        => request('GET',   '/admin/coupons'),
+      create: (data)    => request('POST',  '/admin/coupons', data),
+      update: (id, d)   => request('PATCH', `/admin/coupons/${id}`, d),
     },
   },
 };

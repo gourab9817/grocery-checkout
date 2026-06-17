@@ -18,9 +18,37 @@ export function OrderReceiptPage() {
   useEffect(() => {
     if (!bill) {
       api.billing.getOrder(id).then((res) => {
-        setOrder(res.data);
+        const raw = res.data;
+        // Map DB snake_case row → display shape matching the bill format
+        setOrder({
+          lineItems: (raw.lines ?? []).map((l) => ({
+            name: l.item_name,
+            unitPrice: l.unit_price,
+            unitType: l.unit_type,
+            quantity: l.quantity,
+            lineSubtotal: l.line_subtotal,
+            lineSubtotalFormatted: `₹${(l.line_subtotal / 100).toFixed(2)}`,
+          })),
+          subtotal: raw.subtotal,
+          subtotalFormatted: `₹${(raw.subtotal / 100).toFixed(2)}`,
+          totalTax: raw.total_tax,
+          totalTaxFormatted: `₹${(raw.total_tax / 100).toFixed(2)}`,
+          grandTotal: raw.grand_total,
+          grandTotalFormatted: `₹${(raw.grand_total / 100).toFixed(2)}`,
+          discounts: (raw.discounts ?? []).map((d) => ({
+            ...d,
+            amountSavedFormatted: `₹${(d.amountPaise / 100).toFixed(2)}`,
+          })),
+          taxBreakdown: (raw.tax_breakdown ?? []).map((r) => ({
+            ...r,
+            ratePercent: r.rateBps / 100,
+            taxableBaseFormatted: `₹${(r.taxableBase / 100).toFixed(2)}`,
+            taxAmountFormatted: `₹${(r.taxAmount / 100).toFixed(2)}`,
+          })),
+          meta: { computedAt: raw.computed_at },
+        });
         setLoading(false);
-      });
+      }).catch(() => setLoading(false));
     }
   }, [id, bill]);
 

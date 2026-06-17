@@ -1,16 +1,19 @@
 import { useState } from 'react';
 import { Link, NavLink } from 'react-router-dom';
-import { ShoppingBasket, Menu, X, Leaf } from 'lucide-react';
+import { ShoppingBasket, Menu, X, Leaf, User, LogOut, ClipboardList } from 'lucide-react';
 import { useCartContext } from '../lib/cartContext.jsx';
+import { useUser } from '../lib/userContext.jsx';
 
 const NAV_LINKS = [
-  { to: '/',        label: 'Shop' },
-  { to: '/orders',  label: 'Orders' },
+  { to: '/',       label: 'Shop' },
+  { to: '/orders', label: 'Orders' },
 ];
 
 export function Navbar() {
   const { itemCount } = useCartContext();
+  const { user, logout, setShowAuthModal } = useUser();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
 
   return (
     <>
@@ -35,9 +38,7 @@ export function Navbar() {
                 end={to === '/'}
                 className={({ isActive }) =>
                   `px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ` +
-                  (isActive
-                    ? 'bg-forest text-canvas'
-                    : 'text-forest/70 hover:text-forest hover:bg-parchment')
+                  (isActive ? 'bg-forest text-canvas' : 'text-forest/70 hover:text-forest hover:bg-parchment')
                 }
               >
                 {label}
@@ -47,17 +48,60 @@ export function Navbar() {
               to="/admin"
               className={({ isActive }) =>
                 `px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ` +
-                (isActive
-                  ? 'bg-forest text-canvas'
-                  : 'text-forest/70 hover:text-forest hover:bg-parchment')
+                (isActive ? 'bg-forest text-canvas' : 'text-forest/70 hover:text-forest hover:bg-parchment')
               }
             >
               Admin
             </NavLink>
           </nav>
 
-          {/* Cart + mobile toggle */}
-          <div className="flex items-center gap-3">
+          {/* Right actions */}
+          <div className="flex items-center gap-2">
+            {/* User account */}
+            {user ? (
+              <div className="relative">
+                <button
+                  onClick={() => setAccountOpen((o) => !o)}
+                  className="flex items-center gap-2 px-3 py-2 rounded-full bg-parchment border border-stone text-forest text-sm font-medium hover:bg-clay/20 transition-all"
+                >
+                  <User size={15} strokeWidth={1.5} />
+                  <span className="hidden sm:inline max-w-[120px] truncate">{user.name || user.email.split('@')[0]}</span>
+                </button>
+                {accountOpen && (
+                  <div
+                    className="absolute right-0 top-full mt-2 w-48 bg-canvas border border-stone rounded-2xl shadow-lg py-2 z-50"
+                    onBlur={() => setAccountOpen(false)}
+                  >
+                    <Link
+                      to="/my-orders"
+                      onClick={() => setAccountOpen(false)}
+                      className="flex items-center gap-2 px-4 py-2.5 text-sm text-forest hover:bg-parchment transition-colors"
+                    >
+                      <ClipboardList size={14} strokeWidth={1.5} />
+                      My Orders
+                    </Link>
+                    <div className="border-t border-stone my-1" />
+                    <button
+                      onClick={() => { logout(); setAccountOpen(false); }}
+                      className="flex items-center gap-2 w-full text-left px-4 py-2.5 text-sm text-terra hover:bg-parchment transition-colors"
+                    >
+                      <LogOut size={14} strokeWidth={1.5} />
+                      Sign out
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowAuthModal(true)}
+                className="flex items-center gap-2 px-3 py-2 rounded-full border border-stone text-forest text-sm font-medium hover:bg-parchment transition-all"
+              >
+                <User size={15} strokeWidth={1.5} />
+                <span className="hidden sm:inline">Sign in</span>
+              </button>
+            )}
+
+            {/* Cart */}
             <Link
               to="/cart"
               className="relative flex items-center gap-2 px-4 py-2 rounded-full bg-parchment border border-stone text-forest text-sm font-medium transition-all duration-300 hover:bg-clay/30 hover:border-clay"
@@ -89,7 +133,12 @@ export function Navbar() {
           onClick={() => setMenuOpen(false)}
         >
           <nav className="flex flex-col gap-2">
-            {[...NAV_LINKS, { to: '/cart', label: 'Cart' }, { to: '/admin', label: 'Admin' }].map(({ to, label }) => (
+            {[
+              ...NAV_LINKS,
+              { to: '/cart', label: 'Cart' },
+              ...(user ? [{ to: '/my-orders', label: 'My Orders' }] : []),
+              { to: '/admin', label: 'Admin' },
+            ].map(({ to, label }) => (
               <NavLink
                 key={to}
                 to={to}
@@ -102,6 +151,21 @@ export function Navbar() {
                 {label}
               </NavLink>
             ))}
+            {user ? (
+              <button
+                className="px-6 py-4 rounded-2xl text-xl font-serif font-semibold text-terra text-left hover:bg-parchment"
+                onClick={() => { logout(); setMenuOpen(false); }}
+              >
+                Sign out
+              </button>
+            ) : (
+              <button
+                className="px-6 py-4 rounded-2xl text-xl font-serif font-semibold text-forest text-left hover:bg-parchment"
+                onClick={() => { setMenuOpen(false); setShowAuthModal(true); }}
+              >
+                Sign in
+              </button>
+            )}
           </nav>
         </div>
       )}

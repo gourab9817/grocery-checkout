@@ -20,11 +20,12 @@ export class OrderService {
 
   /**
    * Checkout: compute bill then persist it.
-   * @param {{ lines: { itemId: string, quantity: number }[], couponCode?: string }} cartDTO
+   * @param {{ lines: { itemId: string, quantity: number }[], couponCode?: string, userId?: string }} cartDTO
    * @returns {Promise<{ orderId: string, bill: import('@grocery/domain').Bill }>}
    */
   async checkout(cartDTO) {
-    const { bill, couponRecord } = await this._billing.quote(cartDTO, { allowEmptyCart: false });
+    const { userId, ...billingDTO } = cartDTO;
+    const { bill, couponRecord } = await this._billing.quote(billingDTO, { allowEmptyCart: false });
 
     const totalDiscount = sum(bill.discounts.map((d) => d.amountPaise));
 
@@ -42,9 +43,10 @@ export class OrderService {
         couponId: couponRecord?.id ?? null,
         currency: bill.meta.currency,
         computedAt: bill.meta.computedAt,
+        userId: userId ?? null,
       },
       lines: bill.lineItems.map((li) => ({
-        itemId: li.itemId ?? li.name, // itemId carried from domain if present
+        itemId: li.itemId,
         name: li.name,
         unitPrice: li.unitPrice,
         unitType: li.unitType,
@@ -76,5 +78,14 @@ export class OrderService {
    */
   async listOrders(opts = {}) {
     return this._orders.findAll(opts);
+  }
+
+  /**
+   * List orders for a specific customer.
+   * @param {string} userId
+   * @param {{ limit?: number, offset?: number }} opts
+   */
+  async getMyOrders(userId, opts = {}) {
+    return this._orders.findByUserId(userId, opts);
   }
 }

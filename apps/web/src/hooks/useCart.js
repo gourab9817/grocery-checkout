@@ -26,6 +26,7 @@ export function useCart() {
   const [quoteLoading, setQuoteLoading] = useState(false);
   const [quoteError, setQuoteError] = useState(null);
   const debounceRef = useRef(null);
+  const stalePrunedRef = useRef(false); // only prune stale IDs once per session
 
   // Persist to localStorage
   useEffect(() => {
@@ -44,10 +45,27 @@ export function useCart() {
       setQuoteLoading(true);
       setQuoteError(null);
       try {
-        const res = await api.billing.quote({ lines, couponCode: couponCode || undefined });
+        const res = await api.billing.quote({ lines: lines.map(({ itemId, quantity }) => ({ itemId, quantity })), couponCode: couponCode || undefined });
         setBill(res.data);
+        // On first successful quote, drop any IDs the server didn't recognise
+        // (happens after a DB re-seed). Guard with ref so this never re-triggers the effect.
+        if (!stalePrunedRef.current && res.data?.lineItems) {
+          stalePrunedRef.current = true;
+          const validIds = new Set(res.data.lineItems.map((li) => li.itemId));
+          setLines((prev) => {
+            const pruned = prev.filter((l) => validIds.has(l.itemId));
+            return pruned.length === prev.length ? prev : pruned; // referential equality → no re-render if nothing changed
+          });
+        }
       } catch (e) {
-        setQuoteError(e.message);
+        if (e.message?.includes('does not exist') || e.code === 'UNKNOWN_ITEM') {
+          // Use functional update so this doesn't re-trigger the effect
+          setLines([]);
+          setBill(null);
+          setQuoteError('Some items in your cart are no longer available. Cart has been cleared.');
+        } else {
+          setQuoteError(e.message);
+        }
       } finally {
         setQuoteLoading(false);
       }

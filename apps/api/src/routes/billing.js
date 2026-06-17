@@ -2,9 +2,9 @@ import { BillingController } from '../controllers/billingController.js';
 
 /**
  * @param {import('fastify').FastifyInstance} app
- * @param {{ billingService, orderService }} opts
+ * @param {{ billingService, orderService, optionalAuth, requireAuth }} opts
  */
-export async function billingRoutes(app, { billingService, orderService }) {
+export async function billingRoutes(app, { billingService, orderService, optionalAuth, requireAuth }) {
   const ctrl = new BillingController(billingService, orderService);
 
   // POST /quote — compute a bill without persisting (powers live preview)
@@ -23,13 +23,23 @@ export async function billingRoutes(app, { billingService, orderService }) {
     },
   }, ctrl.quote);
 
-  // POST /checkout — compute and persist the order
+  // POST /checkout — compute and persist the order (optional auth attaches userId)
   app.post('/checkout', {
+    preHandler: optionalAuth,
     schema: {
       tags: ['Billing'],
       summary: 'Checkout: compute bill and persist order',
     },
   }, ctrl.checkout);
+
+  // GET /orders/mine — fetch current user's order history (requires auth)
+  app.get('/orders/mine', {
+    preHandler: requireAuth,
+    schema: {
+      tags: ['Orders'],
+      summary: "Fetch the authenticated user's order history",
+    },
+  }, ctrl.getMyOrders);
 
   // GET /orders/:id — fetch a persisted order receipt
   app.get('/orders/:id', {

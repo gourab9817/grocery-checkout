@@ -1,6 +1,6 @@
 import { CatalogRepository } from '../interfaces/CatalogRepository.js';
 
-const COLS = 'id, name, category, unit_type, unit_price, gst_rate_bps, active';
+const COLS = 'id, name, category, unit_type, unit_price, gst_rate_bps, active, image_slug, description';
 
 function toItem(row) {
   return {
@@ -11,6 +11,8 @@ function toItem(row) {
     unitPrice:   Number(row.unit_price),
     gstRateBps:  Number(row.gst_rate_bps),
     active:      row.active,
+    imageSlug:   row.image_slug  ?? null,
+    description: row.description ?? null,
   };
 }
 
@@ -50,10 +52,11 @@ export class PostgresCatalogRepository extends CatalogRepository {
 
   async create(data) {
     const { rows } = await this._pool.query(
-      `INSERT INTO catalog_items (name, category, unit_type, unit_price, gst_rate_bps, active)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO catalog_items (name, category, unit_type, unit_price, gst_rate_bps, active, image_slug, description)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING ${COLS}`,
-      [data.name, data.category, data.unitType, data.unitPrice, data.gstRateBps, data.active ?? true]
+      [data.name, data.category, data.unitType, data.unitPrice, data.gstRateBps,
+       data.active ?? true, data.imageSlug ?? null, data.description ?? null]
     );
     return toItem(rows[0]);
   }
@@ -62,12 +65,14 @@ export class PostgresCatalogRepository extends CatalogRepository {
     const fields = [];
     const values = [];
     let i = 1;
-    if (data.name      !== undefined) { fields.push(`name = $${i++}`);          values.push(data.name); }
-    if (data.category  !== undefined) { fields.push(`category = $${i++}`);      values.push(data.category); }
-    if (data.unitType  !== undefined) { fields.push(`unit_type = $${i++}`);     values.push(data.unitType); }
-    if (data.unitPrice !== undefined) { fields.push(`unit_price = $${i++}`);    values.push(data.unitPrice); }
-    if (data.gstRateBps !== undefined){ fields.push(`gst_rate_bps = $${i++}`);  values.push(data.gstRateBps); }
-    if (data.active    !== undefined) { fields.push(`active = $${i++}`);        values.push(data.active); }
+    if (data.name        !== undefined) { fields.push(`name = $${i++}`);          values.push(data.name); }
+    if (data.category    !== undefined) { fields.push(`category = $${i++}`);      values.push(data.category); }
+    if (data.unitType    !== undefined) { fields.push(`unit_type = $${i++}`);     values.push(data.unitType); }
+    if (data.unitPrice   !== undefined) { fields.push(`unit_price = $${i++}`);    values.push(data.unitPrice); }
+    if (data.gstRateBps  !== undefined) { fields.push(`gst_rate_bps = $${i++}`);  values.push(data.gstRateBps); }
+    if (data.active      !== undefined) { fields.push(`active = $${i++}`);        values.push(data.active); }
+    if (data.imageSlug   !== undefined) { fields.push(`image_slug = $${i++}`);    values.push(data.imageSlug); }
+    if (data.description !== undefined) { fields.push(`description = $${i++}`);   values.push(data.description); }
 
     values.push(id);
     const { rows } = await this._pool.query(

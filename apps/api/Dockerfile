@@ -21,6 +21,7 @@ COPY package.json package-lock.json     ./
 COPY packages/domain                    ./packages/domain
 COPY apps/api                           ./apps/api
 COPY db                                 ./db
+COPY data                               ./data
 
 EXPOSE 3000
 

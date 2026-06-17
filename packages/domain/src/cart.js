@@ -57,7 +57,7 @@ export function resolveCartContext(cart, catalog, opts = {}) {
     validateQuantity(item, quantity, `lines[${lineIndex}].quantity`);
 
     const lineSubtotal = mulQuantity(item.unitPrice, quantity);
-    resolvedLines.push({ item, quantity, lineSubtotal });
+    resolvedLines.push({ itemId, item, quantity, lineSubtotal });
     lineIndex++;
   }
 

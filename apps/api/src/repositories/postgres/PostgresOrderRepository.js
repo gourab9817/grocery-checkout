@@ -11,8 +11,8 @@ export class PostgresOrderRepository extends OrderRepository {
       const { rows: [savedOrder] } = await client.query(
         `INSERT INTO orders
            (subtotal, total_discount, taxable_amount, total_tax, grand_total,
-            discounts, skipped_offers, tax_breakdown, coupon_id, currency, computed_at)
-         VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7::jsonb,$8::jsonb,$9,$10,$11)
+            discounts, skipped_offers, tax_breakdown, coupon_id, currency, computed_at, user_id)
+         VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7::jsonb,$8::jsonb,$9,$10,$11,$12)
          RETURNING id`,
         [
           order.subtotal,
@@ -26,6 +26,7 @@ export class PostgresOrderRepository extends OrderRepository {
           order.couponId ?? null,
           order.currency ?? 'INR',
           order.computedAt ?? new Date().toISOString(),
+          order.userId ?? null,
         ]
       );
 
@@ -68,6 +69,29 @@ export class PostgresOrderRepository extends OrderRepository {
       `SELECT id, grand_total, currency, computed_at, created_at
        FROM orders ORDER BY created_at DESC LIMIT $1 OFFSET $2`,
       [limit, offset]
+    );
+    return rows;
+  }
+
+  async findByUserId(userId, { limit = 50, offset = 0 } = {}) {
+    const { rows } = await this._pool.query(
+      `SELECT o.id, o.grand_total, o.currency, o.computed_at, o.created_at,
+              o.subtotal, o.total_discount, o.grand_total,
+              json_agg(json_build_object(
+                'itemId', ol.item_id,
+                'name', ol.item_name,
+                'quantity', ol.quantity,
+                'unitType', ol.unit_type,
+                'unitPrice', ol.unit_price,
+                'lineSubtotal', ol.line_subtotal
+              ) ORDER BY ol.id) AS lines
+       FROM orders o
+       JOIN order_lines ol ON ol.order_id = o.id
+       WHERE o.user_id = $1
+       GROUP BY o.id
+       ORDER BY o.created_at DESC
+       LIMIT $2 OFFSET $3`,
+      [userId, limit, offset]
     );
     return rows;
   }

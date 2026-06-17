@@ -71,9 +71,27 @@ export class AdminController {
   };
 
   // ─── Coupons ───────────────────────────────────────────────────────────────
+  listCoupons = async (request, reply) => {
+    const coupons = await this._coupons.findAll();
+    reply.send({ data: coupons });
+  };
+
   createCoupon = async (request, reply) => {
     const data = validate(CreateCouponSchema, request.body);
     const coupon = await this._coupons.create(data);
     reply.status(201).send({ data: coupon });
+  };
+
+  updateCoupon = async (request, reply) => {
+    const { active, maxUses, validUntil } = request.body ?? {};
+    const coupon = await this._coupons.update(request.params.id, {
+      ...(active !== undefined && { active }),
+      ...(maxUses !== undefined && { maxUses }),
+      ...(validUntil !== undefined && { validUntil }),
+    });
+    if (!coupon) {
+      return reply.status(404).send({ error: { code: 'NOT_FOUND', message: 'Coupon not found' } });
+    }
+    reply.send({ data: coupon });
   };
 }

@@ -36,6 +36,30 @@ export class PostgresCouponRepository extends CouponRepository {
     );
   }
 
+  async findAll({ limit = 100, offset = 0 } = {}) {
+    const { rows } = await this._pool.query(
+      `SELECT ${COLS} FROM coupons ORDER BY created_at DESC LIMIT $1 OFFSET $2`,
+      [limit, offset]
+    );
+    return rows.map(toRecord);
+  }
+
+  async update(id, data) {
+    const fields = [];
+    const values = [];
+    let i = 1;
+    if (data.active !== undefined) { fields.push(`active = $${i++}`); values.push(data.active); }
+    if (data.maxUses !== undefined) { fields.push(`max_uses = $${i++}`); values.push(data.maxUses); }
+    if (data.validUntil !== undefined) { fields.push(`valid_until = $${i++}`); values.push(data.validUntil); }
+    if (!fields.length) throw new Error('Nothing to update');
+    values.push(id);
+    const { rows } = await this._pool.query(
+      `UPDATE coupons SET ${fields.join(', ')}, updated_at = NOW() WHERE id = $${i} RETURNING ${COLS}`,
+      values
+    );
+    return rows[0] ? toRecord(rows[0]) : null;
+  }
+
   async create(data) {
     const { rows } = await this._pool.query(
       `INSERT INTO coupons (code, name, percent_bps, amount_paise, max_discount_paise, valid_from, valid_until, max_uses, active)

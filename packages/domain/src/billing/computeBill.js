@@ -51,6 +51,7 @@ export function computeBill({ cart, catalog, offerRecords = [], computedAt, allo
   /** @type {import('../types.js').Bill} */
   const bill = {
     lineItems: ctx.lines.map((l) => ({
+      itemId: l.itemId,
       name: l.item.name,
       unitPrice: l.item.unitPrice,
       unitType: l.item.unitType,

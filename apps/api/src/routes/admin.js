@@ -22,5 +22,7 @@ export async function adminRoutes(app, { catalogRepo, offerRepo, couponRepo }) {
   app.patch('/offers/:id', { schema: { tags: ['Admin'] } }, ctrl.updateOffer);
 
   // ─── Coupon admin ──────────────────────────────────────────────────────────
-  app.post('/coupons', { schema: { tags: ['Admin'] } }, ctrl.createCoupon);
+  app.get('/coupons',      { schema: { tags: ['Admin'] } }, ctrl.listCoupons);
+  app.post('/coupons',     { schema: { tags: ['Admin'] } }, ctrl.createCoupon);
+  app.patch('/coupons/:id', { schema: { tags: ['Admin'] } }, ctrl.updateCoupon);
 }

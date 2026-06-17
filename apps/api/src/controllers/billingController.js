@@ -24,7 +24,8 @@ export class BillingController {
 
   checkout = async (request, reply) => {
     const dto = validate(CheckoutRequestSchema, request.body);
-    const { orderId, bill } = await this._orders.checkout(dto);
+    const userId = request.user?.userId ?? null;
+    const { orderId, bill } = await this._orders.checkout({ ...dto, userId });
     reply.status(201).send({ data: { orderId, bill: formatBill(bill) } });
   };
 
@@ -37,6 +38,12 @@ export class BillingController {
       return;
     }
     reply.send({ data: order });
+  };
+
+  getMyOrders = async (request, reply) => {
+    const userId = request.user.userId;
+    const orders = await this._orders.getMyOrders(userId);
+    reply.send({ data: orders });
   };
 }
 

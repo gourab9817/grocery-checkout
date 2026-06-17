@@ -7,11 +7,14 @@ import { globalErrorHandler } from './middleware/errorHandler.js';
 import { BillingService } from './services/BillingService.js';
 import { OrderService } from './services/OrderService.js';
 import { AuthService } from './services/AuthService.js';
+import { UserService } from './services/UserService.js';
 import { catalogRoutes } from './routes/catalog.js';
 import { billingRoutes } from './routes/billing.js';
 import { adminRoutes } from './routes/admin.js';
 import { authRoutes } from './routes/auth.js';
+import { userRoutes } from './routes/users.js';
 import { metricsRoutes } from './routes/metrics.js';
+import { requireAuth, optionalAuth } from './middleware/auth.js';
 
 /**
  * Build and return the Fastify app.
@@ -64,12 +67,14 @@ export async function buildApp(opts = {}) {
   const billingService = new BillingService(repos.catalog, repos.offer, repos.coupon);
   const orderService   = new OrderService(billingService, repos.order, repos.coupon);
   const authService    = new AuthService(pool ?? opts.pool ?? null);
+  const userService    = new UserService(pool ?? opts.pool ?? null);
 
   // ─── Routes ────────────────────────────────────────────────────────────────
   await app.register(metricsRoutes);
   await app.register(authRoutes,    { prefix: '/auth',    authService });
+  await app.register(userRoutes,    { prefix: '/users',   userService, authenticate: requireAuth });
   await app.register(catalogRoutes, { prefix: '/catalog', catalogRepo: repos.catalog });
-  await app.register(billingRoutes, { prefix: '/',        billingService, orderService });
+  await app.register(billingRoutes, { prefix: '/',        billingService, orderService, requireAuth, optionalAuth });
   await app.register(adminRoutes,   {
     prefix: '/admin',
     catalogRepo: repos.catalog,

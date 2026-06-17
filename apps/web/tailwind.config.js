@@ -34,10 +34,15 @@ export default {
           from: { opacity: '0', transform: 'translateY(20px)' },
           to:   { opacity: '1', transform: 'translateY(0)' },
         },
+        fadeInUp: {
+          from: { opacity: '0', transform: 'translateY(24px) scale(0.97)' },
+          to:   { opacity: '1', transform: 'translateY(0) scale(1)' },
+        },
       },
       animation: {
-        slideIn: 'slideIn 0.35s ease-out',
-        fadeUp:  'fadeUp 0.5s ease-out both',
+        slideIn:  'slideIn 0.35s ease-out',
+        fadeUp:   'fadeUp 0.5s ease-out both',
+        fadeInUp: 'fadeInUp 0.25s ease-out',
       },
     },
   },

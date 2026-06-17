@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Package, Tag, Ticket, Plus, Pencil, ToggleLeft, ToggleRight, LogIn, LogOut, AlertCircle } from 'lucide-react';
+import { Package, Tag, Ticket, Plus, Pencil, ToggleLeft, ToggleRight, LogIn, LogOut, AlertCircle, BadgePercent, BadgeDollarSign } from 'lucide-react';
 import { api, getAuthToken, setAuthToken } from '../../api/client.js';
 import { useToast } from '../../components/Toast.jsx';
 import { Spinner } from '../../components/Spinner.jsx';
@@ -91,6 +91,7 @@ export function AdminPage() {
   const [tab, setTab] = useState('catalog');
   const [items, setItems] = useState([]);
   const [offers, setOffers] = useState([]);
+  const [coupons, setCoupons] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [modal, setModal] = useState(null);
@@ -117,6 +118,9 @@ export function AdminPage() {
       } else if (t === 'offers') {
         const res = await api.admin.offers.list();
         setOffers(res.data);
+      } else if (t === 'coupons') {
+        const res = await api.admin.coupons.list();
+        setCoupons(res.data);
       }
     } catch (e) {
       if (e.status === 401) {
@@ -196,7 +200,7 @@ export function AdminPage() {
       ) : tab === 'offers' ? (
         <OffersTable offers={offers} onToggle={handleToggleOffer} onEdit={(o) => setModal({ type: 'offers', data: o })} />
       ) : (
-        <CouponsSection />
+        <CouponsTable coupons={coupons} onToggle={handleToggleCoupon} onCreate={() => setModal({ type: 'coupons' })} />
       )}
 
       {modal?.type === 'catalog' && (
@@ -237,6 +241,16 @@ export function AdminPage() {
       await api.admin.offers.update(offer.id, { active: !offer.active });
       await loadData('offers');
       toast(`${offer.name} ${!offer.active ? 'activated' : 'deactivated'}`);
+    } catch (e) {
+      toast(e.message, 'error');
+    }
+  }
+
+  async function handleToggleCoupon(coupon) {
+    try {
+      await api.admin.coupons.update(coupon.id, { active: !coupon.active });
+      await loadData('coupons');
+      toast(`${coupon.code} ${!coupon.active ? 'activated' : 'deactivated'}`);
     } catch (e) {
       toast(e.message, 'error');
     }
@@ -333,12 +347,73 @@ function OffersTable({ offers, onToggle, onEdit }) {
   );
 }
 
-function CouponsSection() {
+function CouponsTable({ coupons, onToggle }) {
+  if (coupons.length === 0) {
+    return (
+      <div className="text-center py-20 text-forest/50">
+        <Ticket size={40} strokeWidth={1} className="mx-auto mb-4 text-clay" />
+        <p className="font-serif text-xl text-forest mb-2">No coupons yet</p>
+        <p className="text-sm">Use the "Add Coupon" button to create your first code.</p>
+      </div>
+    );
+  }
   return (
-    <div className="text-center py-20 text-forest/50">
-      <Ticket size={40} strokeWidth={1} className="mx-auto mb-4 text-clay" />
-      <p className="font-serif text-xl text-forest mb-2">Coupon Management</p>
-      <p className="text-sm">Use the "Add Coupon" button above to create new coupon codes.</p>
+    <div className="bg-white rounded-[24px] border border-stone overflow-hidden shadow-soft">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-stone bg-parchment">
+            <Th>Code</Th>
+            <Th>Name</Th>
+            <Th>Discount</Th>
+            <Th>Max Discount</Th>
+            <Th>Uses</Th>
+            <Th>Expires</Th>
+            <Th>Status</Th>
+          </tr>
+        </thead>
+        <tbody>
+          {coupons.map((c) => {
+            const discountLabel = c.percentBps
+              ? `${c.percentBps / 100}% off`
+              : `₹${(c.amountPaise / 100).toFixed(0)} off`;
+            const maxLabel = c.maxDiscountPaise
+              ? `up to ₹${(c.maxDiscountPaise / 100).toFixed(0)}`
+              : '—';
+            const expiresLabel = c.validUntil
+              ? new Date(c.validUntil).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+              : 'No expiry';
+            const usageLabel = c.maxUses ? `${c.usesCount} / ${c.maxUses}` : `${c.usesCount} used`;
+            return (
+              <tr key={c.id} className="border-b border-stone/50 last:border-0 hover:bg-parchment/50 transition-colors">
+                <Td>
+                  <span className="font-mono font-bold text-forest tracking-wider bg-parchment border border-stone px-2 py-0.5 rounded-lg text-xs">
+                    {c.code}
+                  </span>
+                </Td>
+                <Td><span className="font-medium text-forest">{c.name}</span></Td>
+                <Td>
+                  <span className={`flex items-center gap-1 font-semibold ${c.percentBps ? 'text-sage' : 'text-terra'}`}>
+                    {c.percentBps ? <BadgePercent size={13} strokeWidth={1.5} /> : <BadgeDollarSign size={13} strokeWidth={1.5} />}
+                    {discountLabel}
+                  </span>
+                </Td>
+                <Td className="text-forest/60 text-xs">{maxLabel}</Td>
+                <Td className="text-forest/60 text-xs">{usageLabel}</Td>
+                <Td className="text-forest/60 text-xs">{expiresLabel}</Td>
+                <Td>
+                  <button
+                    onClick={() => onToggle(c)}
+                    className={`flex items-center gap-1.5 text-xs font-medium transition-colors duration-200 ${c.active ? 'text-sage' : 'text-forest/40'}`}
+                  >
+                    {c.active ? <ToggleRight size={18} strokeWidth={1.5} /> : <ToggleLeft size={18} strokeWidth={1.5} />}
+                    {c.active ? 'Active' : 'Inactive'}
+                  </button>
+                </Td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }

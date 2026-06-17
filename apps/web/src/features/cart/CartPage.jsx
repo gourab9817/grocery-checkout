@@ -2,13 +2,13 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Trash2, Plus, Minus, Tag, AlertCircle,
-  Receipt, ChevronRight, Loader2
+  Receipt, ChevronRight, Loader2, ShoppingBasket
 } from 'lucide-react';
 import { useCartContext } from '../../lib/cartContext.jsx';
+import { useUser } from '../../lib/userContext.jsx';
 import { api } from '../../api/client.js';
 import { useToast } from '../../components/Toast.jsx';
 import { EmptyState } from '../../components/EmptyState.jsx';
-import { ShoppingBasket } from 'lucide-react';
 
 export function CartPage() {
   const {
@@ -17,6 +17,7 @@ export function CartPage() {
     removeItem, updateQty, clearCart,
     addItem,
   } = useCartContext();
+  const { requireLogin } = useUser();
 
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [couponInput, setCouponInput] = useState(couponCode);
@@ -26,6 +27,12 @@ export function CartPage() {
   const handleApplyCoupon = () => setCouponCode(couponInput.toUpperCase().trim());
 
   const handleCheckout = async () => {
+    requireLogin(async () => {
+      await doCheckout();
+    });
+  };
+
+  const doCheckout = async () => {
     setCheckoutLoading(true);
     try {
       const res = await api.billing.checkout({
@@ -43,6 +50,7 @@ export function CartPage() {
       setCheckoutLoading(false);
     }
   };
+
 
   if (lines.length === 0) {
     return (
@@ -77,13 +85,12 @@ export function CartPage() {
             const isWeight = item.unitType === 'weight';
             const price = ((item.unitPrice ?? 0) / 100).toFixed(2);
             const total = ((item.unitPrice ?? 0) * line.quantity / 100).toFixed(2);
+            const EMOJI = { vegetables: '🥦', fruits: '🍊', dairy: '🥛', staples: '🌾', snacks: '🫙', beverages: '🍵' };
 
             return (
               <div key={line.itemId} className="card p-5 flex items-center gap-5">
-                {/* Emoji icon */}
-                <div className="w-14 h-14 rounded-2xl bg-parchment border border-stone flex items-center justify-center text-2xl flex-shrink-0">
-                  {{ vegetables: '🥦', fruits: '🍊', dairy: '🥛', staples: '🌾', snacks: '🫙', beverages: '🍵' }[item.category] ?? '🛒'}
-                </div>
+                {/* Product image */}
+                <CartItemThumb item={item} emoji={EMOJI[item.category] ?? '🛒'} />
 
                 <div className="flex-1 min-w-0">
                   <p className="font-serif font-semibold text-forest truncate">{item.name}</p>
@@ -184,7 +191,7 @@ export function CartPage() {
               <Row label="Subtotal" value={bill.subtotalFormatted} />
 
               {bill.discounts?.map((d) => (
-                <Row key={d.offerId} label={`🎉 ${d.offerName}`} value={`-${d.amountSavedFormatted}`} color="text-sage" />
+                <Row key={d.offerId} label={`🎉 ${d.label ?? d.offerName}`} value={`-${d.amountSavedFormatted}`} color="text-sage" />
               ))}
 
               {bill.taxBreakdown?.map((r) => (
@@ -252,6 +259,24 @@ function Row({ label, value, color = 'text-forest', small = false }) {
     <div className="flex items-center justify-between">
       <span className={`${small ? 'text-xs' : 'text-sm'} text-forest/60`}>{label}</span>
       <span className={`${small ? 'text-xs' : 'text-sm'} font-semibold ${color}`}>{value}</span>
+    </div>
+  );
+}
+
+function CartItemThumb({ item, emoji }) {
+  const [imgError, setImgError] = useState(false);
+  return (
+    <div className="w-14 h-14 rounded-2xl bg-parchment border border-stone flex items-center justify-center text-2xl flex-shrink-0 overflow-hidden">
+      {item.imageSlug && !imgError ? (
+        <img
+          src={`/images/${item.imageSlug}.jpg`}
+          alt={item.name}
+          className="w-full h-full object-cover"
+          onError={() => setImgError(true)}
+        />
+      ) : (
+        <span className="text-2xl">{emoji}</span>
+      )}
     </div>
   );
 }

@@ -102,4 +102,11 @@
   .divider {
     @apply border-t border-stone my-6;
   }
+
+  /* ── Form input ── */
+  .input-field {
+    @apply w-full px-4 py-2.5 rounded-xl border border-stone bg-white text-forest text-sm
+           placeholder:text-forest/30 focus:outline-none focus:border-forest/40 focus:ring-2
+           focus:ring-forest/10 transition-all duration-200;
+  }
 }
