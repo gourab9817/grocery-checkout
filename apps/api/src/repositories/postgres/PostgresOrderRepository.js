@@ -11,8 +11,9 @@ export class PostgresOrderRepository extends OrderRepository {
       const { rows: [savedOrder] } = await client.query(
         `INSERT INTO orders
            (subtotal, total_discount, taxable_amount, total_tax, grand_total,
-            discounts, skipped_offers, tax_breakdown, coupon_id, currency, computed_at, user_id)
-         VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7::jsonb,$8::jsonb,$9,$10,$11,$12)
+            discounts, skipped_offers, tax_breakdown, coupon_id, currency, computed_at, user_id,
+            delivery_address, phone)
+         VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7::jsonb,$8::jsonb,$9,$10,$11,$12,$13::jsonb,$14)
          RETURNING id`,
         [
           order.subtotal,
@@ -27,6 +28,8 @@ export class PostgresOrderRepository extends OrderRepository {
           order.currency ?? 'INR',
           order.computedAt ?? new Date().toISOString(),
           order.userId ?? null,
+          order.deliveryAddress ? JSON.stringify(order.deliveryAddress) : null,
+          order.phone ?? null,
         ]
       );
 

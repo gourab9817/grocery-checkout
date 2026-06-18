@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, ShoppingBasket, Sparkles } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { api } from '../../api/client.js';
 import { CatalogCard } from './CatalogCard.jsx';
 import { CategoryPill } from './CategoryPill.jsx';
@@ -11,22 +12,16 @@ import { useCartContext } from '../../lib/cartContext.jsx';
 const CATEGORIES = ['all', 'vegetables', 'fruits', 'dairy', 'staples', 'snacks', 'beverages'];
 
 export function CatalogPage() {
-  const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [activeCategory, setActiveCategory] = useState('all');
   const [search, setSearch] = useState('');
   const { itemCount, bill } = useCartContext();
 
-  useEffect(() => {
-    setLoading(true);
-    const cat = activeCategory === 'all' ? undefined : activeCategory;
-    api.catalog
-      .list(cat)
-      .then((res) => setItems(res.data))
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
-  }, [activeCategory]);
+  const cat = activeCategory === 'all' ? undefined : activeCategory;
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['catalog', cat],
+    queryFn: () => api.catalog.list(cat).then((r) => r.data),
+  });
+  const items = data ?? [];
 
   const filtered = search.trim()
     ? items.filter((i) => i.name.toLowerCase().includes(search.toLowerCase()))
@@ -85,12 +80,12 @@ export function CatalogPage() {
       </div>
 
       {/* Grid */}
-      {loading ? (
+      {isLoading ? (
         <div className="flex justify-center py-32">
           <Spinner size={32} />
         </div>
       ) : error ? (
-        <div className="text-center py-24 text-terra font-medium">{error}</div>
+        <div className="text-center py-24 text-terra font-medium">{error.message}</div>
       ) : filtered.length === 0 ? (
         <EmptyState
           title="Nothing here yet"

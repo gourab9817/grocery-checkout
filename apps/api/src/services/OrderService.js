@@ -7,15 +7,11 @@
 import { sum } from '@grocery/domain';
 
 export class OrderService {
-  /**
-   * @param {import('./BillingService.js').BillingService} billingService
-   * @param {import('../repositories/interfaces/OrderRepository.js').OrderRepository} orderRepo
-   * @param {import('../repositories/interfaces/CouponRepository.js').CouponRepository} couponRepo
-   */
-  constructor(billingService, orderRepo, couponRepo) {
-    this._billing = billingService;
-    this._orders = orderRepo;
-    this._coupons = couponRepo;
+  constructor(billingService, orderRepo, couponRepo, notificationService = null) {
+    this._billing       = billingService;
+    this._orders        = orderRepo;
+    this._coupons       = couponRepo;
+    this._notifications = notificationService;
   }
 
   /**
@@ -24,7 +20,7 @@ export class OrderService {
    * @returns {Promise<{ orderId: string, bill: import('@grocery/domain').Bill }>}
    */
   async checkout(cartDTO) {
-    const { userId, ...billingDTO } = cartDTO;
+    const { userId, phone, addressId, deliveryAddress, ...billingDTO } = cartDTO;
     const { bill, couponRecord } = await this._billing.quote(billingDTO, { allowEmptyCart: false });
 
     const totalDiscount = sum(bill.discounts.map((d) => d.amountPaise));
@@ -44,6 +40,8 @@ export class OrderService {
         currency: bill.meta.currency,
         computedAt: bill.meta.computedAt,
         userId: userId ?? null,
+        deliveryAddress: deliveryAddress ?? null,
+        phone: phone ?? null,
       },
       lines: bill.lineItems.map((li) => ({
         itemId: li.itemId,
@@ -59,6 +57,11 @@ export class OrderService {
     // Atomically increment coupon usage after successful order creation
     if (couponRecord) {
       await this._coupons.incrementUsage(couponRecord.id);
+    }
+
+    // Fire-and-forget — never break checkout
+    if (this._notifications && phone) {
+      this._notifications.sendOrderConfirmation({ phone, orderId, total: bill.grandTotal }).catch(() => {});
     }
 
     return { orderId, bill };

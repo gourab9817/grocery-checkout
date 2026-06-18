@@ -1,7 +1,4 @@
-/**
- * CatalogController — thin HTTP layer.
- * parse → validate → service → shape response. No business logic.
- */
+import { makeETag } from '../utils/etag.js';
 
 export class CatalogController {
   /** @param {import('../repositories/interfaces/CatalogRepository.js').CatalogRepository} catalogRepo */
@@ -15,6 +12,19 @@ export class CatalogController {
     if (category) {
       items = items.filter((i) => i.category === category);
     }
-    reply.send({ data: items, count: items.length });
+
+    const payload = { data: items, count: items.length };
+    const etag = makeETag(JSON.stringify(payload));
+
+    if (request.headers['if-none-match'] === etag) {
+      return reply.code(304).send();
+    }
+
+    // Send the object (not a pre-stringified string) so Fastify's serializer and
+    // @fastify/compress handle content-length/encoding correctly.
+    reply
+      .header('ETag', etag)
+      .header('Cache-Control', 'public, max-age=60')
+      .send(payload);
   };
 }

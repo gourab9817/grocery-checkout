@@ -1,6 +1,7 @@
 import { X, Weight, Package, Plus, Minus, ShoppingCart } from 'lucide-react';
 import { useEffect } from 'react';
 import { useCartContext } from '../../lib/cartContext.jsx';
+import { imageUrl } from '../../lib/imageUrl.js';
 
 const CATEGORY_COLORS = {
   vegetables: { bg: 'bg-sage/10',  text: 'text-sage',   border: 'border-sage/20' },
@@ -42,7 +43,7 @@ export function ProductDetailModal({ item, onClose }) {
     return () => { document.body.style.overflow = ''; };
   }, []);
 
-  const imgSrc = item.imageSlug ? `/images/${item.imageSlug}.jpg` : null;
+  const imgSrc = imageUrl(item.imageSlug);
 
   return (
     <div
@@ -72,6 +73,8 @@ export function ProductDetailModal({ item, onClose }) {
             <img
               src={imgSrc}
               alt={item.name}
+              loading="lazy"
+              crossOrigin="anonymous"
               className="h-full w-full object-contain p-6"
               onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
             />

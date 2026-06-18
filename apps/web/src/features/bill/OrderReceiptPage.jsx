@@ -1,58 +1,81 @@
-import { useEffect, useState } from 'react';
+import { useRef, useState } from 'react';
 import { useParams, useLocation, Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import {
   CheckCircle, ArrowLeft, ShoppingBasket, Printer,
-  Receipt, Leaf
+  Receipt, Leaf, Download
 } from 'lucide-react';
 import { api } from '../../api/client.js';
 import { Spinner } from '../../components/Spinner.jsx';
+
+function mapDbRow(raw) {
+  return {
+    lineItems: (raw.lines ?? []).map((l) => ({
+      name: l.item_name,
+      unitPrice: l.unit_price,
+      unitType: l.unit_type,
+      quantity: l.quantity,
+      lineSubtotal: l.line_subtotal,
+      lineSubtotalFormatted: `₹${(l.line_subtotal / 100).toFixed(2)}`,
+    })),
+    subtotal: raw.subtotal,
+    subtotalFormatted: `₹${(raw.subtotal / 100).toFixed(2)}`,
+    totalTax: raw.total_tax,
+    totalTaxFormatted: `₹${(raw.total_tax / 100).toFixed(2)}`,
+    grandTotal: raw.grand_total,
+    grandTotalFormatted: `₹${(raw.grand_total / 100).toFixed(2)}`,
+    discounts: (raw.discounts ?? []).map((d) => ({
+      ...d,
+      amountSavedFormatted: `₹${(d.amountPaise / 100).toFixed(2)}`,
+    })),
+    taxBreakdown: (raw.tax_breakdown ?? []).map((r) => ({
+      ...r,
+      ratePercent: r.rateBps / 100,
+      taxableBaseFormatted: `₹${(r.taxableBase / 100).toFixed(2)}`,
+      taxAmountFormatted: `₹${(r.taxAmount / 100).toFixed(2)}`,
+    })),
+    meta: { computedAt: raw.computed_at },
+  };
+}
 
 export function OrderReceiptPage() {
   const { id } = useParams();
   const location = useLocation();
   const passedBill = location.state?.bill ?? null;
-  const [bill] = useState(passedBill);
-  const [order, setOrder] = useState(null);
-  const [loading, setLoading] = useState(!passedBill);
+  const receiptRef = useRef(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
 
-  useEffect(() => {
-    if (!bill) {
-      api.billing.getOrder(id).then((res) => {
-        const raw = res.data;
-        // Map DB snake_case row → display shape matching the bill format
-        setOrder({
-          lineItems: (raw.lines ?? []).map((l) => ({
-            name: l.item_name,
-            unitPrice: l.unit_price,
-            unitType: l.unit_type,
-            quantity: l.quantity,
-            lineSubtotal: l.line_subtotal,
-            lineSubtotalFormatted: `₹${(l.line_subtotal / 100).toFixed(2)}`,
-          })),
-          subtotal: raw.subtotal,
-          subtotalFormatted: `₹${(raw.subtotal / 100).toFixed(2)}`,
-          totalTax: raw.total_tax,
-          totalTaxFormatted: `₹${(raw.total_tax / 100).toFixed(2)}`,
-          grandTotal: raw.grand_total,
-          grandTotalFormatted: `₹${(raw.grand_total / 100).toFixed(2)}`,
-          discounts: (raw.discounts ?? []).map((d) => ({
-            ...d,
-            amountSavedFormatted: `₹${(d.amountPaise / 100).toFixed(2)}`,
-          })),
-          taxBreakdown: (raw.tax_breakdown ?? []).map((r) => ({
-            ...r,
-            ratePercent: r.rateBps / 100,
-            taxableBaseFormatted: `₹${(r.taxableBase / 100).toFixed(2)}`,
-            taxAmountFormatted: `₹${(r.taxAmount / 100).toFixed(2)}`,
-          })),
-          meta: { computedAt: raw.computed_at },
-        });
-        setLoading(false);
-      }).catch(() => setLoading(false));
+  const { data: fetchedOrder, isLoading } = useQuery({
+    queryKey: ['order', id],
+    queryFn: () => api.billing.getOrder(id).then((r) => mapDbRow(r.data)),
+    enabled: !passedBill,
+  });
+
+  const handleDownloadPdf = async () => {
+    if (!receiptRef.current) return;
+    setPdfLoading(true);
+    try {
+      const { default: html2canvas } = await import('html2canvas');
+      const { default: jsPDF } = await import('jspdf');
+      const canvas = await html2canvas(receiptRef.current, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#FAFAF7',
+      });
+      const imgData = canvas.toDataURL('image/jpeg', 0.92);
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'px', format: 'a4' });
+      const pageW = pdf.internal.pageSize.getWidth();
+      const imgH = (canvas.height * pageW) / canvas.width;
+      pdf.addImage(imgData, 'JPEG', 0, 0, pageW, imgH);
+      pdf.save(`order-${id?.slice(0, 8).toUpperCase()}.pdf`);
+    } catch (err) {
+      console.error('PDF generation failed:', err);
+    } finally {
+      setPdfLoading(false);
     }
-  }, [id, bill]);
+  };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex justify-center py-32">
         <Spinner size={32} />
@@ -60,7 +83,7 @@ export function OrderReceiptPage() {
     );
   }
 
-  const data = bill ?? order;
+  const data = passedBill ?? fetchedOrder;
   if (!data) {
     return (
       <div className="max-w-xl mx-auto px-6 py-20 text-center">
@@ -89,8 +112,8 @@ export function OrderReceiptPage() {
         <p className="text-forest/50 text-sm font-mono">#{id?.slice(0, 8).toUpperCase()}</p>
       </div>
 
-      {/* Receipt card */}
-      <div className="bg-white rounded-[28px] border border-stone shadow-card overflow-hidden print:shadow-none">
+      {/* Receipt card — ref for PDF capture */}
+      <div ref={receiptRef} className="bg-white rounded-[28px] border border-stone shadow-card overflow-hidden print:shadow-none">
         {/* Header strip */}
         <div className="bg-parchment border-b border-stone px-7 py-5 flex items-center gap-3">
           <div className="w-8 h-8 rounded-full bg-forest flex items-center justify-center">
@@ -99,8 +122,8 @@ export function OrderReceiptPage() {
           <div>
             <p className="font-serif font-bold text-forest text-sm">AnsrMart</p>
             <p className="text-[11px] text-forest/40">
-              {bill?.meta?.computedAt
-                ? new Date(bill.meta.computedAt).toLocaleString('en-IN', {
+              {data.meta?.computedAt
+                ? new Date(data.meta.computedAt).toLocaleString('en-IN', {
                     dateStyle: 'medium',
                     timeStyle: 'short',
                   })
@@ -140,10 +163,10 @@ export function OrderReceiptPage() {
           {/* Discounts */}
           {data.discounts?.length > 0 && (
             <div className="p-4 rounded-2xl bg-sage/5 border border-sage/20">
-              <p className="section-eyebrow mb-2">Savings applied 🎉</p>
-              {data.discounts.map((d) => (
-                <div key={d.offerId} className="flex justify-between text-sm">
-                  <span className="text-sage font-medium">{d.offerName}</span>
+              <p className="section-eyebrow mb-2">Savings applied</p>
+              {data.discounts.map((d, i) => (
+                <div key={i} className="flex justify-between text-sm">
+                  <span className="text-sage font-medium">{d.label ?? d.offerName}</span>
                   <span className="text-sage font-semibold">-{d.amountSavedFormatted}</span>
                 </div>
               ))}
@@ -154,8 +177,8 @@ export function OrderReceiptPage() {
           {data.taxBreakdown?.length > 0 && (
             <div>
               <p className="section-eyebrow mb-2">Tax Breakdown</p>
-              {data.taxBreakdown.map((r) => (
-                <div key={r.rateBps} className="flex justify-between text-xs text-forest/60 py-0.5">
+              {data.taxBreakdown.map((r, i) => (
+                <div key={i} className="flex justify-between text-xs text-forest/60 py-0.5">
                   <span>GST {r.ratePercent}% on {r.taxableBaseFormatted}</span>
                   <span>{r.taxAmountFormatted}</span>
                 </div>
@@ -172,8 +195,8 @@ export function OrderReceiptPage() {
             {data.discounts?.length > 0 && (
               <div className="flex justify-between text-sm text-sage font-semibold">
                 <span>Total savings</span>
-                <span>-{data.discounts.reduce
-                  ? data.discounts[0]?.amountSavedFormatted
+                <span>-{data.discounts.reduce((sum, d) => sum + (d.amountPaise ?? 0), 0) > 0
+                  ? `₹${(data.discounts.reduce((sum, d) => sum + (d.amountPaise ?? 0), 0) / 100).toFixed(2)}`
                   : ''}</span>
               </div>
             )}
@@ -195,7 +218,15 @@ export function OrderReceiptPage() {
       </div>
 
       {/* Actions */}
-      <div className="flex gap-3 mt-8 justify-center">
+      <div className="flex gap-3 mt-8 justify-center flex-wrap">
+        <button
+          onClick={handleDownloadPdf}
+          disabled={pdfLoading}
+          className="btn-primary"
+        >
+          {pdfLoading ? <Spinner size={16} /> : <Download size={16} strokeWidth={1.5} />}
+          {pdfLoading ? 'Generating…' : 'Download PDF'}
+        </button>
         <Link to="/" className="btn-secondary">
           <ShoppingBasket size={16} strokeWidth={1.5} />
           Shop again

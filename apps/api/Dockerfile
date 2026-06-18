@@ -16,12 +16,13 @@ ENV NODE_ENV=production \
     PORT=3000 \
     HOST=0.0.0.0
 
-COPY --from=deps /app/node_modules      ./node_modules
-COPY package.json package-lock.json     ./
-COPY packages/domain                    ./packages/domain
-COPY apps/api                           ./apps/api
-COPY db                                 ./db
-COPY data                               ./data
+COPY --from=deps /app/node_modules          ./node_modules
+COPY --from=deps /app/apps/api/node_modules ./apps/api/node_modules
+COPY package.json package-lock.json         ./
+COPY packages/domain                        ./packages/domain
+COPY apps/api                               ./apps/api
+COPY db                                     ./db
+COPY data                                   ./data
 
 EXPOSE 3000
 

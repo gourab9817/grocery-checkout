@@ -4,10 +4,12 @@
  * POST /auth/register → { token, email, role }  (only when no admins exist)
  */
 
+const AUTH_RATE_LIMIT = { max: 5, timeWindow: '1 minute' };
+
 export async function authRoutes(app, opts) {
   const { authService } = opts;
 
-  app.post('/login', async (request, reply) => {
+  app.post('/login', { config: { rateLimit: AUTH_RATE_LIMIT } }, async (request, reply) => {
     const { email, password } = request.body ?? {};
     if (!email || !password) {
       return reply.status(400).send({ error: { code: 'VALIDATION_ERROR', message: 'email and password required.' } });
@@ -20,7 +22,7 @@ export async function authRoutes(app, opts) {
     }
   });
 
-  app.post('/register', async (request, reply) => {
+  app.post('/register', { config: { rateLimit: AUTH_RATE_LIMIT } }, async (request, reply) => {
     const { email, password } = request.body ?? {};
     if (!email || !password) {
       return reply.status(400).send({ error: { code: 'VALIDATION_ERROR', message: 'email and password required.' } });

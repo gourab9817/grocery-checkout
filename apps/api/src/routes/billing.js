@@ -9,6 +9,7 @@ export async function billingRoutes(app, { billingService, orderService, optiona
 
   // POST /quote — compute a bill without persisting (powers live preview)
   app.post('/quote', {
+    config: { rateLimit: { max: 100, timeWindow: '1 minute' } },
     schema: {
       tags: ['Billing'],
       summary: 'Compute a live bill preview (no persistence)',
@@ -26,6 +27,7 @@ export async function billingRoutes(app, { billingService, orderService, optiona
   // POST /checkout — compute and persist the order (optional auth attaches userId)
   app.post('/checkout', {
     preHandler: optionalAuth,
+    config: { rateLimit: { max: 10, timeWindow: '1 minute' } },
     schema: {
       tags: ['Billing'],
       summary: 'Checkout: compute bill and persist order',

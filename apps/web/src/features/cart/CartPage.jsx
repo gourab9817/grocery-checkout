@@ -7,6 +7,7 @@ import {
 import { useCartContext } from '../../lib/cartContext.jsx';
 import { useUser } from '../../lib/userContext.jsx';
 import { api } from '../../api/client.js';
+import { imageUrl } from '../../lib/imageUrl.js';
 import { useToast } from '../../components/Toast.jsx';
 import { EmptyState } from '../../components/EmptyState.jsx';
 
@@ -269,8 +270,10 @@ function CartItemThumb({ item, emoji }) {
     <div className="w-14 h-14 rounded-2xl bg-parchment border border-stone flex items-center justify-center text-2xl flex-shrink-0 overflow-hidden">
       {item.imageSlug && !imgError ? (
         <img
-          src={`/images/${item.imageSlug}.jpg`}
+          src={imageUrl(item.imageSlug)}
           alt={item.name}
+          loading="lazy"
+          crossOrigin="anonymous"
           className="w-full h-full object-cover"
           onError={() => setImgError(true)}
         />

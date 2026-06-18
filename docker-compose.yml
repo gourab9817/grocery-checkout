@@ -12,6 +12,18 @@
 
 services:
 
+  # ── Redis ─────────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
   # ── Floci (local AWS emulator) ────────────────────────────────────────────────
   floci:
     image: floci/floci:latest-compat
@@ -77,11 +89,17 @@ services:
       AWS_DEFAULT_REGION: us-east-1
       AWS_ACCESS_KEY_ID: test
       AWS_SECRET_ACCESS_KEY: test
+      REDIS_URL: redis://redis:6379
+      WEB_ORIGIN: http://localhost:8080
+      IMAGE_BASE_URL: /images
+      NOTIFICATIONS_ENABLED: "false"
     depends_on:
       postgres:
         condition: service_healthy
       floci:
         condition: service_started
+      redis:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "sh", "-c", "wget -q --spider http://127.0.0.1:3000/health || exit 1"]
       interval: 10s
@@ -102,6 +120,8 @@ services:
     depends_on:
       api:
         condition: service_healthy
+      floci:
+        condition: service_started
     restart: unless-stopped
 
 volumes:

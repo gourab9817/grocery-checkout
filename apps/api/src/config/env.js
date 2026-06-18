@@ -19,6 +19,7 @@ export const env = {
   DB_NAME:     optional('DB_NAME', 'ansrmart'),
   DB_USER:     optional('DB_USER', 'ansrmart'),
   DB_PASSWORD: optional('DB_PASSWORD', ''),
+  DB_SSL:      optional('DB_SSL', 'false'),
 
   // JWT (used by AuthService)
   JWT_SECRET: optional('JWT_SECRET', ''),
@@ -32,6 +33,19 @@ export const env = {
   // Secret names in Secrets Manager (leave blank to use DB_PASSWORD / JWT_SECRET directly)
   DB_SECRET_NAME:  optional('DB_SECRET_NAME', ''),
   JWT_SECRET_NAME: optional('JWT_SECRET_NAME', ''),
+
+  // Redis
+  REDIS_URL: optional('REDIS_URL', 'redis://localhost:6379'),
+
+  // CORS allowed origin for the web app
+  WEB_ORIGIN: optional('WEB_ORIGIN', 'http://localhost:8080'),
+
+  // Base URL for product images (CDN in prod, local in dev)
+  IMAGE_BASE_URL: optional('IMAGE_BASE_URL', '/images'),
+
+  // Notifications
+  NOTIFICATIONS_ENABLED:  optional('NOTIFICATIONS_ENABLED', 'false'),
+  NOTIFICATIONS_PROVIDER: optional('NOTIFICATIONS_PROVIDER', 'log'),
 };
 
 export function assertEnv() {

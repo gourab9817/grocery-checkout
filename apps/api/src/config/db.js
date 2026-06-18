@@ -30,6 +30,10 @@ export async function getPool() {
     max: 10,
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 5000,
+    // AWS RDS requires TLS. Set DB_SSL=true in production.
+    // rejectUnauthorized:false accepts RDS's CA without bundling the cert;
+    // for strict verification, mount the RDS CA bundle and set it here.
+    ssl: env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
   });
 
   return _pool;

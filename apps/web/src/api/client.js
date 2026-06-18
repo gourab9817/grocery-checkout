@@ -33,7 +33,29 @@ export function setSavedUser(user) {
   else localStorage.removeItem('ansrmart_user');
 }
 
-async function request(method, path, body, { useUserToken = false } = {}) {
+// Single in-flight refresh promise to dedup concurrent 401s
+let _refreshPromise = null;
+
+async function refreshAccessToken() {
+  if (_refreshPromise) return _refreshPromise;
+  _refreshPromise = fetch(`${BASE}/users/refresh`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+  })
+    .then(async (res) => {
+      if (!res.ok) throw new Error('refresh failed');
+      const json = await res.json();
+      const { accessToken, ...userFields } = json.data;
+      setUserToken(accessToken);
+      setSavedUser(userFields);
+      return accessToken;
+    })
+    .finally(() => { _refreshPromise = null; });
+  return _refreshPromise;
+}
+
+async function request(method, path, body, { useUserToken = false, _retrying = false } = {}) {
   const token = useUserToken ? getUserToken() : getAuthToken();
   const headers = { 'Content-Type': 'application/json' };
   if (token) headers['Authorization'] = `Bearer ${token}`;
@@ -41,8 +63,23 @@ async function request(method, path, body, { useUserToken = false } = {}) {
   const res = await fetch(`${BASE}${path}`, {
     method,
     headers,
+    credentials: 'include',
+    // TanStack Query is our client cache. Tell the browser not to do its own
+    // conditional revalidation, which would leak a bodyless 304 to fetch().
+    // The server still emits ETag/Cache-Control for CDNs and non-SPA clients.
+    cache: 'no-store',
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
+
+  // Auto-refresh on 401 for customer requests (once)
+  if (res.status === 401 && useUserToken && !_retrying) {
+    try {
+      await refreshAccessToken();
+      return request(method, path, body, { useUserToken, _retrying: true });
+    } catch {
+      // Refresh failed — let the 401 bubble up so UserContext can open auth modal
+    }
+  }
 
   const json = await res.json().catch(() => null);
 
@@ -66,8 +103,17 @@ export const api = {
   users: {
     signup:    (data) => request('POST', '/users/signup', data),
     login:     (data) => request('POST', '/users/login',  data),
+    refresh:   ()     => request('POST', '/users/refresh', undefined, { useUserToken: true }),
+    logout:    ()     => request('POST', '/users/logout',  undefined, { useUserToken: true }),
     me:        ()     => request('GET',  '/users/me', undefined, { useUserToken: true }),
     myOrders:  ()     => request('GET',  '/orders/mine',  undefined, { useUserToken: true }),
+  },
+
+  addresses: {
+    list:   ()        => request('GET',    '/addresses',     undefined, { useUserToken: true }),
+    create: (data)    => request('POST',   '/addresses',     data,      { useUserToken: true }),
+    update: (id, d)   => request('PATCH',  `/addresses/${id}`, d,       { useUserToken: true }),
+    remove: (id)      => request('DELETE', `/addresses/${id}`, undefined, { useUserToken: true }),
   },
 
   catalog: {

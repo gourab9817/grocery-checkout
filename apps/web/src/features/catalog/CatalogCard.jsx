@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Plus, Minus, Weight, Package } from 'lucide-react';
 import { useCartContext } from '../../lib/cartContext.jsx';
 import { ProductDetailModal } from './ProductDetailModal.jsx';
+import { imageUrl } from '../../lib/imageUrl.js';
 
 const CATEGORY_COLORS = {
   vegetables: { bg: 'bg-sage/10',  text: 'text-sage',   border: 'border-sage/20' },
@@ -28,7 +29,7 @@ export function CatalogCard({ item, index }) {
 
   const priceRupees = (item.unitPrice / 100).toFixed(2);
   const unitLabel = isWeight ? '/kg' : '/unit';
-  const imgSrc = item.imageSlug ? `/images/${item.imageSlug}.jpg` : null;
+  const imgSrc = imageUrl(item.imageSlug);
 
   const handleAdd = (e) => { e.stopPropagation(); addItem(item); };
   const handleDec = (e) => {
@@ -62,6 +63,8 @@ export function CatalogCard({ item, index }) {
             <img
               src={imgSrc}
               alt={item.name}
+              loading="lazy"
+              crossOrigin="anonymous"
               className="h-full w-full object-contain p-3 transition-transform duration-500 group-hover:scale-105"
               onError={(e) => {
                 e.target.style.display = 'none';

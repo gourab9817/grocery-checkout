@@ -3,6 +3,10 @@ assertEnv();
 
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
+import helmet from '@fastify/helmet';
+import cookie from '@fastify/cookie';
+import rateLimit from '@fastify/rate-limit';
+import { getRedis } from './config/redis.js';
 import { globalErrorHandler } from './middleware/errorHandler.js';
 import { BillingService } from './services/BillingService.js';
 import { OrderService } from './services/OrderService.js';
@@ -15,6 +19,8 @@ import { authRoutes } from './routes/auth.js';
 import { userRoutes } from './routes/users.js';
 import { metricsRoutes } from './routes/metrics.js';
 import { requireAuth, optionalAuth } from './middleware/auth.js';
+import { addressRoutes } from './routes/addresses.js';
+import { NotificationService } from './services/NotificationService.js';
 
 /**
  * Build and return the Fastify app.
@@ -37,9 +43,25 @@ export async function buildApp(opts = {}) {
       },
     },
     genReqId: () => crypto.randomUUID(),
+    bodyLimit: 100_000,
+    trustProxy: true,
   });
 
-  await app.register(cors, { origin: true });
+  // Plugin order matters: helmet → cors → cookie → rate-limit
+  // (gzip/brotli compression is handled by nginx at the edge — see apps/web/Dockerfile)
+  await app.register(helmet, { contentSecurityPolicy: false });
+  await app.register(cors, {
+    origin: [env.WEB_ORIGIN],
+    credentials: true,
+  });
+  await app.register(cookie);
+
+  const redis = getRedis();
+  await app.register(rateLimit, {
+    redis: redis ?? undefined,
+    global: false,
+  });
+
   app.setErrorHandler(globalErrorHandler);
 
   // ─── Dependency injection ──────────────────────────────────────────────────
@@ -55,19 +77,27 @@ export async function buildApp(opts = {}) {
     const { PostgresOfferRepository }   = await import('./repositories/postgres/PostgresOfferRepository.js');
     const { PostgresCouponRepository }  = await import('./repositories/postgres/PostgresCouponRepository.js');
     const { PostgresOrderRepository }   = await import('./repositories/postgres/PostgresOrderRepository.js');
+    const { CachedCatalogRepository }          = await import('./repositories/cache/CachedCatalogRepository.js');
+    const { CachedOfferRepository }            = await import('./repositories/cache/CachedOfferRepository.js');
+    const { PostgresRefreshTokenRepository }   = await import('./repositories/postgres/PostgresRefreshTokenRepository.js');
+    const { PostgresAddressRepository }        = await import('./repositories/postgres/PostgresAddressRepository.js');
 
+    const r = getRedis();
     repos = {
-      catalog: new PostgresCatalogRepository(pool),
-      offer:   new PostgresOfferRepository(pool),
-      coupon:  new PostgresCouponRepository(pool),
-      order:   new PostgresOrderRepository(pool),
+      catalog:      new CachedCatalogRepository(new PostgresCatalogRepository(pool), r),
+      offer:        new CachedOfferRepository(new PostgresOfferRepository(pool), r),
+      coupon:       new PostgresCouponRepository(pool),
+      order:        new PostgresOrderRepository(pool),
+      refreshToken: new PostgresRefreshTokenRepository(pool),
+      address:      new PostgresAddressRepository(pool),
     };
   }
 
+  const notificationService = new NotificationService();
   const billingService = new BillingService(repos.catalog, repos.offer, repos.coupon);
-  const orderService   = new OrderService(billingService, repos.order, repos.coupon);
+  const orderService   = new OrderService(billingService, repos.order, repos.coupon, notificationService);
   const authService    = new AuthService(pool ?? opts.pool ?? null);
-  const userService    = new UserService(pool ?? opts.pool ?? null);
+  const userService    = new UserService(pool ?? opts.pool ?? null, repos?.refreshToken ?? null);
 
   // ─── Routes ────────────────────────────────────────────────────────────────
   await app.register(metricsRoutes);
@@ -81,6 +111,7 @@ export async function buildApp(opts = {}) {
     offerRepo:   repos.offer,
     couponRepo:  repos.coupon,
   });
+  await app.register(addressRoutes, { prefix: '/addresses', addressRepo: repos.address ?? null, requireAuth });
 
   return app;
 }

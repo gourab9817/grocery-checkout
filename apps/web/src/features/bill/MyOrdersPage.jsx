@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { Receipt, ChevronRight, CalendarDays, Package, LogIn } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { Spinner } from '../../components/Spinner.jsx';
 import { EmptyState } from '../../components/EmptyState.jsx';
 import { useUser } from '../../lib/userContext.jsx';
@@ -8,20 +8,16 @@ import { api } from '../../api/client.js';
 
 export function MyOrdersPage() {
   const { user, setShowAuthModal } = useUser();
-  const navigate = useNavigate();
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
 
-  useEffect(() => {
-    if (!user) { setLoading(false); return; }
-    api.users.myOrders()
-      .then((res) => setOrders(res.data ?? []))
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
-  }, [user]);
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['my-orders'],
+    queryFn: () => api.users.myOrders().then((r) => r.data ?? []),
+    enabled: !!user,
+  });
 
-  if (loading) return <div className="flex justify-center py-32"><Spinner size={32} /></div>;
+  const orders = data ?? [];
+
+  if (isLoading) return <div className="flex justify-center py-32"><Spinner size={32} /></div>;
 
   if (!user) {
     return (
@@ -50,7 +46,7 @@ export function MyOrdersPage() {
 
       {error && (
         <div className="p-4 rounded-2xl bg-terra/10 border border-terra/20 text-terra text-sm mb-6">
-          {error}
+          {error.message}
         </div>
       )}
 
@@ -65,7 +61,9 @@ export function MyOrdersPage() {
         <div className="flex flex-col gap-3">
           {orders.map((order) => {
             const total = ((order.grand_total ?? 0) / 100).toFixed(2);
-            const date = order.created_at ? new Date(order.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+            const date = order.created_at
+              ? new Date(order.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+              : '';
             const itemCount = order.lines?.length ?? 0;
 
             return (

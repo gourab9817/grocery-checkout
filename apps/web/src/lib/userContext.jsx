@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { api, getUserToken, setUserToken, getSavedUser, setSavedUser } from '../api/client.js';
 
 const UserContext = createContext(null);
@@ -6,25 +6,48 @@ const UserContext = createContext(null);
 export function UserProvider({ children }) {
   const [user, setUser] = useState(getSavedUser);
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [authIntent, setAuthIntent] = useState(null); // callback to run after login
+  const [authIntent, setAuthIntent] = useState(null);
+
+  // Bootstrap: on first load, try to silently refresh from cookie
+  useEffect(() => {
+    if (!getUserToken() && !getSavedUser()) {
+      fetch('/api/users/refresh', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+      })
+        .then(async (res) => {
+          if (!res.ok) return;
+          const json = await res.json();
+          const { accessToken, ...userFields } = json.data;
+          setUserToken(accessToken);
+          setSavedUser(userFields);
+          setUser(userFields);
+        })
+        .catch(() => {}); // not logged in — that's fine
+    }
+  }, []);
+
+  const _applyResult = useCallback((data) => {
+    const { accessToken, ...userFields } = data;
+    setUserToken(accessToken);
+    setSavedUser(userFields);
+    setUser(userFields);
+    return userFields;
+  }, []);
 
   const login = useCallback(async ({ email, password }) => {
     const res = await api.users.login({ email, password });
-    setUserToken(res.data.token);
-    setSavedUser(res.data);
-    setUser(res.data);
-    return res.data;
-  }, []);
+    return _applyResult(res.data);
+  }, [_applyResult]);
 
   const signup = useCallback(async ({ email, password, name }) => {
     const res = await api.users.signup({ email, password, name });
-    setUserToken(res.data.token);
-    setSavedUser(res.data);
-    setUser(res.data);
-    return res.data;
-  }, []);
+    return _applyResult(res.data);
+  }, [_applyResult]);
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    await api.users.logout().catch(() => {});
     setUserToken(null);
     setSavedUser(null);
     setUser(null);
